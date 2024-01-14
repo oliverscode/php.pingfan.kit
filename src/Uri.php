@@ -22,7 +22,6 @@ class Uri
         return $_SERVER['DOCUMENT_ROOT'] . '/';
     }
 
-
     /**
      * 连接目录, 结尾不包含/
      */
