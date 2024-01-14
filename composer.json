@@ -1,7 +1,6 @@
 {
     "name": "oliver404/pingfan.kit",
     "description": "工具库提供工作效率",
-    "type": "library",
     "license": "MIT",
     "autoload": {
         "psr-4": {
@@ -14,5 +13,8 @@
             "email": "yplpf96@gmail.com"
         }
     ],
-    "require": {}
+    "require": {
+        "php": ">7.0"
+    },
+    "minimum-stability": "dev"
 }
