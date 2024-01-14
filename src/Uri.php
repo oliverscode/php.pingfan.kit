@@ -14,7 +14,6 @@ class Uri
         return "$protocol://$host/";
     }
 
-
     /**
      * 获取根目录, 结尾包含/
      */
