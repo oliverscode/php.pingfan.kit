@@ -42,5 +42,4 @@ class Uri
         $root = self::getServerRoot();
         return self::combine($root, ...$paths);
     }
-
 }
