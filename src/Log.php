@@ -10,12 +10,6 @@ class Log
      */
     public function __construct($fileName = 'app')
     {
-//        $root = $_SERVER['DOCUMENT_ROOT'];
-//        $logDir = $root . '/log';
-//        if (!is_dir($logDir)) {
-//            mkdir($logDir);
-//        }
-
         $this->fileName = $fileName;
     }
 
