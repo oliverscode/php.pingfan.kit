@@ -1,4 +1,6 @@
 <?php
+require_once 'Uri.php';
+
 /**日志类*/
 class Log
 {
@@ -8,11 +10,11 @@ class Log
      */
     public function __construct($fileName = 'app')
     {
-        $root = $_SERVER['DOCUMENT_ROOT'];
-        $logDir = $root . '/log';
-        if (!is_dir($logDir)) {
-            mkdir($logDir);
-        }
+//        $root = $_SERVER['DOCUMENT_ROOT'];
+//        $logDir = $root . '/log';
+//        if (!is_dir($logDir)) {
+//            mkdir($logDir);
+//        }
 
         $this->fileName = $fileName;
     }
@@ -26,9 +28,14 @@ class Log
         }
 
         $timestamp = date('Y-m-d H:i:s');
-        $localFileName = Uri::combineFromServerRoot('log', date('Y-m-d'), $this->fileName . '.log');
+        $localFileName = Uri::combineFromServerRoot('log', date('Y-m-d') .' '. $this->fileName . '.log');
         $logMessage = "[$timestamp] [$level] $message" . PHP_EOL;
 
+        // 判断目录是否存在, 不存在则创建
+        $dir = dirname($localFileName);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0777, true);
+        }
         file_put_contents($localFileName, $logMessage, FILE_APPEND);
 
     }
