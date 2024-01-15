@@ -66,7 +66,8 @@ class Str
     public function match(string $pattern): Str
     {
         preg_match($pattern, $this->Value, $match);
-        $str = $match[0] ?? '';
+        $length = count($match);
+        $str = $match[$length - 1] ?? '';
         return new Str($str);
     }
 
@@ -98,6 +99,21 @@ class Str
     public function isEmpty(): bool
     {
         return $this->getLength() == 0;
+    }
+
+    /**获取文本中间*/
+    public function between($start, $end): Str
+    {
+        $startIndex = $this->indexOf($start);
+        if ($startIndex < 0) {
+            return new Str('');
+        }
+        $startIndex += $start->getLength();
+        $endIndex = $this->indexOf($end, false);
+        if ($endIndex < 0) {
+            return new Str('');
+        }
+        return $this->substring($startIndex, $endIndex - $startIndex);
     }
 
     /**寻找字符串, 找不到返回-1*/
@@ -142,6 +158,7 @@ class Str
     {
         return new Str(mb_strtolower($this->Value));
     }
+
 
     public function __toString()
     {

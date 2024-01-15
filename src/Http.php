@@ -19,19 +19,19 @@ class Http
         $this->cookieJar = [];
     }
 
-    public function get($url, $params = [], $customHeaders = [])
+    public function get($url, $params = [], $customHeaders = []): array
     {
         $queryString = http_build_query($params);
         $url = "{$url}?{$queryString}";
         return $this->request('GET', $url, [], false, $customHeaders);
     }
 
-    public function post($url, $params = [], $asJson = false, $customHeaders = [])
+    public function post($url, $params = [], $asJson = false, $customHeaders = []): array
     {
         return $this->request('POST', $url, $params, $asJson, $customHeaders);
     }
 
-    private function request($method, $url, $params, $asJson, $customHeaders = [])
+    private function request($method, $url, $params, $asJson, $customHeaders = []): array
     {
         $ch = curl_init();
         $options = [
@@ -88,7 +88,7 @@ class Http
         }
 
         curl_close($ch);
-        return $response;
+        return ['headers' => [], 'body' => ''];
     }
 
     private function parseHeaders($headerString): array
