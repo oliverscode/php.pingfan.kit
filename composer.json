@@ -1,18 +1,20 @@
 {
-    "name": "oliver404/pingfan.kit",
-    "description": "工具库提供工作效率",
-    "license": "MIT",
-    "autoload": {
-        "classmap": ["src/"]
-    },
-    "authors": [
-        {
-            "name": "Oliver",
-            "email": "yplpf96@gmail.com"
-        }
-    ],
-    "require": {
-        "PHP": "^7.2|^8.0"
-    },
-    "minimum-stability": "dev"
+  "name": "oliver404/pingfan.kit",
+  "description": "工具库提供工作效率",
+  "license": "MIT",
+  "autoload": {
+    "classmap": [
+      "./src/"
+    ]
+  },
+  "authors": [
+    {
+      "name": "Oliver",
+      "email": "yplpf96@gmail.com"
+    }
+  ],
+  "require": {
+    "PHP": "^7.2|^8.0"
+  },
+  "minimum-stability": "dev"
 }
