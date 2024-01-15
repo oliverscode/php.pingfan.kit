@@ -1,12 +1,4 @@
 <?php
-//require_once '../src/Req.php';
-//require_once '../src/RegexEx.php';
-//require_once '../src/Uri.php';
-//require_once '../src/Log.php';
-
-// 自动加载
-//require_once '../vendor/autoload.php';
-
 
 class App
 {

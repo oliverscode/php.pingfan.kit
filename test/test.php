@@ -1,5 +1,5 @@
 <?php
-require_once '../src/App.php';
+require_once '../vendor/autoload.php';
 
 
 App::Run();

@@ -3,9 +3,7 @@
     "description": "工具库提供工作效率",
     "license": "MIT",
     "autoload": {
-        "psr-4": {
-            "Oliver\\PingfanKit\\": "src/"
-        }
+        "classmap": ["src/"]
     },
     "authors": [
         {
