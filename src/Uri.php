@@ -29,9 +29,9 @@ class Uri
     {
         $result = '';
         foreach ($paths as $path) {
-            $result .= rtrim($path, '/') . '/';
+            $result .= trim($path, '/') . '/';
         }
-        return rtrim($result, '/');
+        return trim($result, '/');
     }
 
     /**
