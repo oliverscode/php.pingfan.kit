@@ -15,7 +15,7 @@
     }
   ],
   "require": {
-    "PHP": ">=7.4.*",
+    "PHP": ">=7",
     "ext-mbstring": "*",
     "ext-json": "*"
   },
