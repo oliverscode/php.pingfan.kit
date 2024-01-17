@@ -28,14 +28,11 @@ class Uri
                 $dirs[] = $p;
             }
         }
-
         $result = '';
         foreach ($dirs as $path) {
             $result .= $path . DIRECTORY_SEPARATOR;
         }
         $result = rtrim($result, DIRECTORY_SEPARATOR);
-
-
         // 是否是linux系统
         $isLinux = DIRECTORY_SEPARATOR === '/';
         if ($isLinux) {
