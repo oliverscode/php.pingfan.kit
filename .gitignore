@@ -5,7 +5,8 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 vendor
-test
+/test/
 log
 *.zip
 *.log
+index.php
