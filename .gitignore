@@ -9,4 +9,3 @@ vendor
 log
 *.zip
 *.log
-/index.php
