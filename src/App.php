@@ -111,7 +111,6 @@ class App
         $result = $reflectionMethod->invoke($class, ...$params);
         echo $result;
 
-
     }
 }
 
