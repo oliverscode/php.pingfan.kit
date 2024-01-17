@@ -18,9 +18,14 @@ class App
 
         // 提取路径中的控制器和方法
         $url = new Str($_SERVER['REQUEST_URI']);
+        $self = new Str($_SERVER['PHP_SELF']);
+        if ($_SERVER['REQUEST_URI'] . '.php' == $self) {
+//            echo "url:$url->Value.php\n";
+//            echo "self:$self\n";
+            die;
+        }
 
         $path = $url->match('/^\/[\w\/]+(?=\?|$)/');
-
 
 
         if ($url == '/' && strlen($path) == 0) {
@@ -37,6 +42,8 @@ class App
 
         $root = dirname($_SERVER['SCRIPT_FILENAME']);
 
+//        echo "root:$root\n";
+
 
         // 当前脚本的物理目录
         $fileHide = Uri::combine($root, $path . '.php');
@@ -46,6 +53,7 @@ class App
 //        echo "fileHide:$fileHide\n";
 //        echo "fileApi:$fileApi\n";
 //        echo "file:$file\n";
+//        echo "self:$self\n";
 //        die;
 
         try {
@@ -54,9 +62,13 @@ class App
                 self::runFile($file);
             } elseif (file_exists($fileHide)) {
                 self::runFile($fileHide);
-            } elseif (file_exists($fileApi)) {
+            } elseif ($controller && $action && file_exists($fileApi)) {
                 self::runFile($fileApi);
-                self::runApi($controller, $action);
+                // $controller类
+                if (class_exists($controller)) {
+                    self::runApi($controller, $action);
+                }
+
             } else {
                 Uri::notfound();
             }
@@ -83,33 +95,32 @@ class App
 
     private static function runApi($controller, $action)
     {
+        // 不存在这个类
+        if (!class_exists($controller) || !method_exists($controller, $action))
+            return;
 
         $class = new $controller();
-
-        if (method_exists($controller, $action)) {
-            // 创建反射方法
-            $reflectionMethod = new ReflectionMethod($controller, $action);
-            $params = [];
-            foreach ($reflectionMethod->getParameters() as $parameter) {
-                $name = $parameter->getName();
-                $params[] = $_REQUEST[$name] ?? null;
-            }
-            // 调用方法
-            $result = $reflectionMethod->invoke($class, ...$params);
-            echo $result;
-        } else {
-            Uri::notfound();
+        // 创建反射方法
+        $reflectionMethod = new ReflectionMethod($controller, $action);
+        $params = [];
+        foreach ($reflectionMethod->getParameters() as $parameter) {
+            $name = $parameter->getName();
+            $params[] = $_REQUEST[$name] ?? null;
         }
+        // 调用方法
+        $result = $reflectionMethod->invoke($class, ...$params);
+        echo $result;
+
 
     }
 }
 
 /*
 nginx配置
-location / {
-   if (!-e $request_filename) {
-       rewrite  ^(.*)$  index?s=/$1  last;
-   }
+location ~ \.php$ {
+    if ($request_uri !~* ^/route7624d943f713513c.php) {
+        rewrite ^ /route7624d943f713513c.php last;
+    }
 }
 location ~ ^/(\.user.ini|\.htaccess|\.git|\.svn|\.project|LICENSE|README.md)
 {
@@ -117,7 +128,7 @@ location ~ ^/(\.user.ini|\.htaccess|\.git|\.svn|\.project|LICENSE|README.md)
 }
 
 # 处理php文件
-location ~ \.php {
+location = /route7624d943f713513c.php {
     include fastcgi_params;
     fastcgi_pass   127.0.0.1:9000;
     fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
