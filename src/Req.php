@@ -38,5 +38,4 @@ class Req
     {
         return file_get_contents('php://input');
     }
-
 }
