@@ -78,7 +78,7 @@ class App
     private static function runFile($file)
     {
         header('Content-Type: text/html; charset=utf-8'); // 设置编码
-        require_once $file;
+        include $file;
     }
 
     private static function runApi($controller, $action)

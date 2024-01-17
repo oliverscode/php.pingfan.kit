@@ -7,7 +7,9 @@
       "src"
     ],
     "files": ["src/Req.php"]
+
   },
+
   "authors": [
     {
       "name": "Oliver",

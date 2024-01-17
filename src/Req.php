@@ -1,5 +1,6 @@
 <?php
 
+/**获取get请求中的参数*/
 function get(string $key, $default = ''): string
 {
     return $_GET[$key] ?? $default;
@@ -39,3 +40,4 @@ function input()
 {
     return file_get_contents('php://input');
 }
+$b = "ccc";
