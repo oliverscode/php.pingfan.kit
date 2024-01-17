@@ -1,8 +1,4 @@
 <?php
-// windows 删除所有远程tag
-// git tag -l | ForEach-Object { git push origin --delete $_ }
-// 删除所有本地的tag
-// git tag -l | ForEach-Object { git tag -d $_ }
 
 require_once 'vendor/autoload.php';
 $options = [
@@ -11,6 +7,13 @@ $options = [
     'debug' => false,
 ];
 App::Run($options);
+
+// windows 删除所有远程tag
+// git tag -l | ForEach-Object { git push origin --delete $_ }
+// 删除所有本地的tag
+// git tag -l | ForEach-Object { git tag -d $_ }
+
+
 
 /*
 nginx配置
