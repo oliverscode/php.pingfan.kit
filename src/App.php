@@ -1,10 +1,11 @@
 <?php
+
 class App
 {
     private static $option = [
         'debug' => false,
         'errLevel' => E_ERROR,
-        'index' => '/index.php',
+        'index' => '/index',
         'static' => [],
         'self' => 'app.php',
     ];

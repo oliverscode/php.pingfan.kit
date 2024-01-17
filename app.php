@@ -3,7 +3,7 @@
 require_once 'vendor/autoload.php';
 $options = [
     'static' => ['/'],
-    'index'=>'index.php',
+    'index' => 'index',
     'debug' => false,
 ];
 App::Run($options);
@@ -12,7 +12,6 @@ App::Run($options);
 // git tag -l | ForEach-Object { git push origin --delete $_ }
 // 删除所有本地的tag
 // git tag -l | ForEach-Object { git tag -d $_ }
-
 
 
 /*
