@@ -5,7 +5,8 @@
   "autoload": {
     "classmap": [
       "src"
-    ]
+    ],
+    "files": ["src/Req.php"]
   },
   "authors": [
     {
@@ -14,7 +15,9 @@
     }
   ],
   "require": {
-    "PHP": "^7.2|^8.0"
+    "PHP": ">=7.4.*",
+    "ext-mbstring": "*",
+    "ext-json": "*"
   },
   "minimum-stability": "dev"
 }

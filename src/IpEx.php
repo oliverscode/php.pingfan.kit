@@ -15,18 +15,21 @@ class IpEx
         $city = $html->match('/"city":"(.+?)"/');
 
         if (!empty($country) && !empty($regionName) && !empty($city)) {
-            if ($country == $regionName) {
-                return "{$country}{$city}";
-            }
-            if ($country == $city) {
-                return "{$country}{$regionName}";
-            }
-            if ($regionName == $city) {
-                return "{$country}{$regionName}";
-            }
-            if ($country == $regionName && $regionName == $city) {
+
+            if ($country === $regionName && $regionName === $city) {
                 return "{$country}";
             }
+
+            if ($country === $regionName) {
+                return "{$country}{$city}";
+            }
+            if ($country === $city) {
+                return "{$country}{$regionName}";
+            }
+            if ($regionName === $city) {
+                return "{$country}{$regionName}";
+            }
+
             return "{$country}{$regionName}{$city}";
         }
         return null;

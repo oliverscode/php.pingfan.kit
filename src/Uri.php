@@ -4,9 +4,7 @@
 class Uri
 {
 
-    /**
-     * 获取当前网址的完整根域名, 如果不是默认端口, 则包含端口, 结尾包含/
-     */
+    /**获取当前网址的完整根域名, 如果不是默认端口, 则包含端口, 结尾包含/*/
     public static function getHost(): string
     {
         $protocol = $_SERVER['REQUEST_SCHEME'];
@@ -14,29 +12,39 @@ class Uri
         return "$protocol://$host/";
     }
 
-    /**
-     * 获取根目录, 结尾包含/
-     */
+    /**获取项目根目录, 结尾包含/*/
     public static function getServerRoot(): string
     {
         return $_SERVER['DOCUMENT_ROOT'] . '/';
     }
 
-    /**
-     * 连接目录, 结尾不包含/
-     */
+    /**连接目录, 结尾不包含/*/
     public static function combine(...$paths): string
     {
-        $result = '';
+        $dirs = [];
         foreach ($paths as $path) {
-            $result .= trim($path, '/') . '/';
+            $str = new Str($path);
+            foreach ($str->split('\\', '/') as $p) {
+                $dirs[] = $p;
+            }
         }
-        return trim($result, '/');
+
+        $result = '';
+        foreach ($dirs as $path) {
+            $result .= $path . DIRECTORY_SEPARATOR;
+        }
+        $result = rtrim($result, DIRECTORY_SEPARATOR);
+
+
+        // 是否是linux系统
+        $isLinux = DIRECTORY_SEPARATOR === '/';
+        if ($isLinux) {
+            $result = '/' . $result;
+        }
+        return $result;
     }
 
-    /**
-     * 从服务器根目录连接一系列目录, 结尾不包含/
-     */
+    /**从服务器根目录连接一系列目录, 结尾不包含/*/
     public static function combineFromServerRoot(...$paths): string
     {
         $root = self::getServerRoot();
@@ -60,14 +68,19 @@ class Uri
     /**返回404错误*/
     public static function notfound()
     {
-        header('HTTP/1.1 404 Not Found');
-        die();
+        // 设置404状态码
+        http_response_code(404);
+        die;
+//        header('HTTP/1.1 404 Not Found');
+//       die();
     }
 
     /**返回500错误*/
     public static function error()
     {
-        header('HTTP/1.1 500 Internal Server Error');
+        http_response_code(500);
         die;
+//        header('HTTP/1.1 500 Internal Server Error');
+//        die;
     }
 }

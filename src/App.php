@@ -20,7 +20,10 @@ class App
         $url = new Str($_SERVER['REQUEST_URI']);
 
         $path = $url->match('/^\/[\w\/]+(?=\?|$)/');
-        if (strlen($path) == 0) {
+
+
+
+        if ($url == '/' && strlen($path) == 0) {
             $path = $option['defaultController'] . '/' . $option['defaultAction'];
             $path = new Str($path);
         }
@@ -34,15 +37,20 @@ class App
 
         $root = dirname($_SERVER['SCRIPT_FILENAME']);
 
+
         // 当前脚本的物理目录
         $fileHide = Uri::combine($root, $path . '.php');
         $fileApi = Uri::combine($root, $controller . '.php');
         $file = Uri::combine($root, $url);
 
+//        echo "fileHide:$fileHide\n";
+//        echo "fileApi:$fileApi\n";
+//        echo "file:$file\n";
+//        die;
 
         try {
 
-            if (file_exists($file)) {
+            if ($option['debug'] && file_exists($file) && strpos($file, '.php') !== false) {
                 self::runFile($file);
             } elseif (file_exists($fileHide)) {
                 self::runFile($fileHide);
@@ -54,6 +62,7 @@ class App
             }
 
         } catch (Exception $exception) {
+
             if ($option['debug']) {
                 throw $exception;
             } else {

@@ -84,15 +84,25 @@ class Str
         return new Str(preg_replace($pattern, $replacement, $this->Value));
     }
 
-    /**支持分割字符串数组, 同时排除空*/
-    public function split($separator): array
+    /** 支持分割字符串数组, 同时排除空
+     * @param $separator string[] 支持数组或者字符串
+     * @return array
+     */
+    public function split(...$separator): array
     {
-        if (is_array($separator)) {
-            $pattern = '/' . implode('|', array_map('preg_quote', $separator)) . '/';
-        } else {
-            $pattern = '/' . preg_quote($separator, '/') . '/';
+
+        $str = str_replace($separator, $separator[0], $this->Value);
+        $separator = $separator[0];
+
+        $arr = explode($separator, $str);
+        $result = [];
+        foreach ($arr as $item) {
+            $item = trim($item);
+            if (strlen($item) > 0) {
+                $result[] = $item;
+            }
         }
-        return preg_split($pattern, $this->Value, -1, PREG_SPLIT_NO_EMPTY);
+        return $result;
     }
 
     /**是否为null或者空*/
@@ -102,7 +112,7 @@ class Str
     }
 
     /**获取文本中间*/
-    public function between($start, $end): Str
+    public function between(int $start, int $end): Str
     {
         $startIndex = $this->indexOf($start);
         if ($startIndex < 0) {
