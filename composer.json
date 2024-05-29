@@ -1,0 +1,28 @@
+{
+  "name": "oliver404/pingfan.kit",
+  "description": "工具库提供工作效率",
+  "version": "1.0.0.0",
+  "license": "MIT",
+  "autoload": {
+    "classmap": [
+      "src"
+    ],
+    "files": []
+
+  },
+
+  "authors": [
+    {
+      "name": "Oliver",
+      "email": "yplpf96@gmail.com"
+    }
+  ],
+  "require": {
+    "PHP": ">=7",
+    "ext-mbstring": "*",
+    "ext-json": "*",
+    "ext-curl": "*",
+    "ext-pdo": "*"
+  },
+  "minimum-stability": "dev"
+}
