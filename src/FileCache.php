@@ -4,13 +4,16 @@ require_once 'Path.php';
 class FileCache
 {
     protected $cachePath;// 缓存路径
+    protected $name;
 
-    public function __construct()
+    public function __construct($name)
     {
-        $this->cachePath = Path::combineFromServerRoot('runtime_file_cache');
+        $this->name = $name;
+        $this->cachePath = Path::combineFromServerRoot('runtime_file_cache', $name);
         if (!file_exists($this->cachePath)) {
-            mkdir($this->cachePath);
+            mkdir($this->cachePath, 0777, true);
         }
+
     }
 
     /**
@@ -40,7 +43,7 @@ class FileCache
     {
         $data = $this->get($key);
         if ($data !== null) {
-            $this->set($key, $data, time() + $expire);
+            $this->set($key, $data, $expire);
         }
     }
 
@@ -113,10 +116,26 @@ class FileCache
     /**清空缓存*/
     public function clear()
     {
-        $files = glob($this->cachePath . '*');
+        $files = glob($this->cachePath . '/*');
         foreach ($files as $file) {
             if (is_file($file)) {
                 unlink($file);
+            }
+        }
+    }
+
+    /**清空全部缓存*/
+    public function clearAll()
+    {
+        $files = glob(Path::combineFromServerRoot('runtime_file_cache', '/*'));
+        foreach ($files as $file) {
+            if (is_dir($file)) {
+                $files = glob($file . '/*');
+                foreach ($files as $f) {
+                    if (is_file($f)) {
+                        unlink($f);
+                    }
+                }
             }
         }
     }
