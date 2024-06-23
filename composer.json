@@ -1,7 +1,7 @@
 {
   "name": "oliver404/pingfan.kit",
   "description": "工具库提供工作效率",
-  "version": "1.0.0.0",
+  "version": "1.0.0.4",
   "license": "MIT",
   "autoload": {
     "classmap": [
