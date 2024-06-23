@@ -140,7 +140,6 @@ class FileCache
         }
     }
 
-
     /**获取缓存文件的路径*/
     protected function getCacheFile(string $key): string
     {
