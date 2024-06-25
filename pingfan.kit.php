@@ -8,12 +8,12 @@ class Str
     public function __construct(string $str)
     {
         if (!extension_loaded('mbstring')) {
-            throw new ('mbstring extension not loaded');
+            throw new Exception('mbstring extension not loaded');
         }
 
         // 如果不是字符串就报错
         if (gettype($str) != 'string') {
-            $str = (string)$str;
+            throw new Exception('str is not string');
         }
 
         $this->Source = $str;
@@ -348,6 +348,12 @@ class Session
     public function clear()
     {
         session_destroy();
+    }
+
+    /**是否存在session*/
+    public function has(string $key): bool
+    {
+        return isset($_SESSION[$key]);
     }
 }
 
