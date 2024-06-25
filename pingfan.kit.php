@@ -1109,12 +1109,10 @@ class Mime
 class FileCache
 {
     protected $cachePath;// 缓存路径
-    protected $name;
 
-    public function __construct($name)
+    public function __construct()
     {
-        $this->name = $name;
-        $this->cachePath = Path::combineFromServerRoot('runtime_file_cache', $name);
+        $this->cachePath = Path::combine(sys_get_temp_dir(), 'pingfan_kit_runtime_cache', md5(Path::getServerRoot()));
         if (!file_exists($this->cachePath)) {
             mkdir($this->cachePath, 0777, true);
         }
@@ -1229,21 +1227,6 @@ class FileCache
         }
     }
 
-    /**清空全部缓存*/
-    public function clearAll()
-    {
-        $files = glob(Path::combineFromServerRoot('runtime_file_cache', '/*'));
-        foreach ($files as $file) {
-            if (is_dir($file)) {
-                $files = glob($file . '/*');
-                foreach ($files as $f) {
-                    if (is_file($f)) {
-                        unlink($f);
-                    }
-                }
-            }
-        }
-    }
 
     /**获取缓存文件的路径*/
     protected function getCacheFile(string $key): string
@@ -1382,110 +1365,219 @@ class Log
 
 }
 
-/**入口类*/
-class App
+/**不区分大写*/
+class DirFile
 {
-    private $option = [
-        'debug' => false,
-        'errLevel' => E_ERROR,
-        'index' => '/index.php',
-        'static' => [],
-        'self' => 'app.php',
-        // 禁止访问的文件
-        'deny' => [
-            'app.php',
-            'pingfan.kit.php',
-            '.ini',
-            '.db',
-            '.log',
-            '.sql',
-            '.bak',
-            'inc',
-            'config',
-            'runtime',
-            'vendor',
 
-        ]
-    ];
-
-    public function __construct($opt = [])
+    public function __construct($dir = null)
     {
-
-        if (is_array($opt) && count($opt) > 0) {
-            $this->option = array_merge($this->option, $opt);
+        if ($dir == null) {
+            $dir = Path::getServerRoot();
         }
-        error_reporting($this->option['errLevel']); // 设置错误级别
+        $this->dir = $dir;
+        $this->cache = new FileCache();
 
-        // 默认首页
-        $script_name = $_SERVER['SCRIPT_NAME'];
-        if ($script_name == '/') {
-            $script_name = $this->option['index'];
-        }
+        // 遍历所有文件
+        $this->files = $this->scan();
 
-        // 判断是否是禁止访问的文件
-        foreach ($this->option['deny'] as $deny) {
-            if (stripos($script_name, $deny) !== false) {
-                header('HTTP/1.1 403 Forbidden');
-                die;
-            }
-        }
-
-        // 取扩展名
-        $ext = pathinfo($script_name, PATHINFO_EXTENSION);
-        if ($ext == '') {
-            $ext = 'php';
-            $script_name .= '.php';
-        }
-
-        // 如果是php文件
-        if ($ext == 'php') {
-            $file = Path::combineFromServerRoot($script_name);
-
-            if (file_exists($file)) {
-                $this->runFile($file);
-            } else {
-                header('HTTP/1.1 404 Not Found');
-            }
-            die;
-
-        } else {
-            // 静态文件
-            $file = Path::combineFromServerRoot($script_name);
-            if (file_exists($file)) {
-                $mime = Mime::get($ext);
-                header('Content-Type: ' . $mime);
-                readfile($file);
-                die;
-            } else {
-                die('文件不存在, 请检查路径');
-            }
-
-        }
-        header('HTTP/1.1 404 Not Found');
-        die;
     }
 
-    private function runFile(string $file)
+    public function getFileName($fileName)
     {
-        header('Content-Type: text/html; charset=utf-8'); // 设置编码
-        try {
-            include $file;
-        } catch (Exception $exception) {
-            if ($this->option['debug'] === true) {
-                throw $exception;
-            } else {
-                $log = new Log("app");
-                $logMessage = '异常消息: ' . $exception->getMessage() . ' 在文件 ' . $exception->getFile() . ' 第 ' . $exception->getLine() . ' 行';
-                $log->error($logMessage);
+        $fileName = strtolower($fileName);
+        foreach ($this->files as $file) {
+            if (strtolower($file) == $fileName) {
+                return $file;
             }
-            header('HTTP/1.1 500 Internal Server Error');
-            die;
         }
+        return $fileName;
     }
+
+
+    private function scan()
+    {
+        return $this->cache->getOrSet($this->dir, function () {
+            $list = $this->glob_recursive($this->dir . '/*');
+            // 遍历list
+            $result = [];
+            foreach ($list as $item) {
+                if ($item == '.' || $item == '..') {
+                    continue;
+                }
+                // 如果是文件夹, 则跳过
+                if (is_dir($item)) {
+                    continue;
+                }
+                $fileName = $item;
+                $result[] = $fileName;
+            }
+            return $result;
+        }, 30);
+    }
+
+    private function glob_recursive($pattern, $flags = 0)
+    {
+        // 搜索匹配当前模式的文件
+        $files = glob($pattern, $flags);
+
+        // 也搜索匹配当前模式的目录中的文件
+        foreach (glob(dirname($pattern) . '/*', GLOB_ONLYDIR | GLOB_NOSORT) as $dir) {
+            $files = array_merge($files, $this->glob_recursive($dir . '/' . basename($pattern), $flags));
+        }
+
+        return $files;
+    }
+
+
+    private $files;
+    private $dir;
+    private $cache;
 }
 
+///**入口类*/
+//class App
+//{
+//    private $option = [
+//        'debug' => false,
+//        'errLevel' => E_ERROR,
+//        'index' => '/index.php',
+//        'static' => [],
+//        'self' => 'app.php',
+//        // 禁止访问的文件
+//        'deny' => [
+//            'app.php',
+//            'pingfan.kit.php',
+//            '.ini',
+//            '.db',
+//            '.log',
+//            '.sql',
+//            '.bak',
+//            'inc',
+//            'config',
+//            'runtime',
+//            'vendor',
+//            'htaccess',
+//            '.git',
+//            '.svn',
+//            '.env',
+//            'composer',
+//            '.project',
+//            'LICENSE',
+//            'README',
+//
+//
+//        ]
+//    ];
+//
+//    public function __construct($opt = [])
+//    {
+//        // 允许短标签
+//        ini_set('short_open_tag', 'On');
+//
+//        if (is_array($opt) && count($opt) > 0) {
+//            $this->option = array_merge($this->option, $opt);
+//        }
+//        error_reporting($this->option['errLevel']); // 设置错误级别
+//
+//        // 默认首页
+//        $request_url = $_SERVER['REQUEST_URI'];
+//        if ($request_url == '/') {
+//            $request_url = $this->option['index'];
+//        }
+//
+//
+//        // 判断是否是禁止访问的文件
+//        foreach ($this->option['deny'] as $deny) {
+//            if (stripos($request_url, $deny) !== false) {
+//                header('HTTP/1.1 403 Forbidden');
+//                return;
+//            }
+//        }
+//
+//
+//        // 取扩展名
+//        $ext = pathinfo($request_url, PATHINFO_EXTENSION);
+//        if ($ext == '') {
+//            $ext = 'php';
+//            $request_url .= '.php';
+//        }
+//
+//        $filePath = Path::combineFromServerRoot($request_url);
+//
+//
+//        // 如果是php文件
+//        if ($ext == 'php') {
+//
+//            if (file_exists($filePath)) {
+//                $this->runFile($filePath);
+//                return;
+//            }
+//
+//
+//            $dirFile = new DirFile();
+//            $filePath = $dirFile->getFileName($filePath);
+//
+//
+//            if (file_exists($filePath)) {
+//                $this->runFile($filePath);
+//                return;
+//            }
+//
+//            header('HTTP/1.1 404 Not Found');
+//            return;
+//
+//        }
+//
+//        // 静态文件
+//        if (file_exists($filePath)) {
+//            $mime = Mime::get($ext);
+//            header('Content-Type: ' . $mime);
+//            readfile($filePath);
+//            return;
+//        }
+//
+//
+//        // 如果文件不存在, 则尝试在文件夹中查找
+//        $dirFile = new DirFile();
+//        $fileName = $dirFile->getFileName($filePath);
+//        if (file_exists($fileName)) {
+//            $mime = Mime::get($ext);
+//            header('Content-Type: ' . $mime);
+//            readfile($fileName);
+//            return;
+//        }
+//
+//        header('HTTP/1.1 404 Not Found');
+//        return;
+//
+//    }
+//
+//    private function runFile(string $file)
+//    {
+//
+//        header('Content-Type: text/html; charset=utf-8'); // 设置编码
+//        try {
+//            include $file;
+//        } catch (Exception $exception) {
+//            if ($this->option['debug'] === true) {
+//                throw $exception;
+//            } else {
+//                $log = new Log("app");
+//                $logMessage = '异常消息: ' . $exception->getMessage() . ' 在文件 ' . $exception->getFile() . ' 第 ' . $exception->getLine() . ' 行';
+//                $log->error($logMessage);
+//            }
+//            header('HTTP/1.1 500 Internal Server Error');
+//            die;
+//        }
+//    }
+//}
+
+//# 禁止访问
+//location ~* (app\.php|pingfan\.kit\.php|\.ini$|\.db$|\.log$|\.sql$|\.bak$|/inc/|/config/|/runtime/|/vendor/|\.htaccess$|/\.git/|/\.svn/|\.env$|/composer/|\.project$|LICENSE$|README$|/\.hg/$) {
+//    deny all;
+//        return 403;
+//    }
 
 $req = new Req();
 $res = new Res();
 $session = new Session();
-
