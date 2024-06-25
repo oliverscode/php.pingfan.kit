@@ -4,11 +4,6 @@
 *.user
 .vs
 
-[Bb]in/
-[Oo]bj/
-_UpgradeReport_Files/
-[Pp]ackages/
-
 
 Thumbs.db
 Desktop.ini
@@ -17,8 +12,4 @@ Desktop.ini
 *.zip
 *.log
 
-
-vendor
-/test/
-app.php
-index.php
+pingfan.kit_link.php
