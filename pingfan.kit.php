@@ -1,4 +1,14 @@
 <?php
+// 屏蔽警告
+error_reporting(E_ERROR);
+// 允许短标签
+ini_set('short_open_tag', 'On');
+
+$req = new Req();
+$res = new Res();
+$session = new Session();
+$cache = new FileCache();
+
 
 /**字符串扩展类*/
 class Str
@@ -99,29 +109,35 @@ class Str
 
     }
 
-    /** 支持分割字符串数组, 同时排除空
-     * @param array ...$separator 支持数组或者字符串
+    /**
+     * 支持分割字符串数组，同时排除空
+     * @param string ...$separator 支持数组或者字符串
      * @return array
      */
-    public function split(array ...$separator): array
+    public function split(string ...$separator): array
     {
         $result = [];
         $str = $this->Source;
-        foreach ($separator as $sep) {
-            if (gettype($sep) == 'string') {
-                $str = str_replace($sep, $separator[0], $str);
-            } else {
-                foreach ($sep as $s) {
-                    $str = str_replace($s, $separator[0], $str);
-                }
-            }
+
+        // 如果没有提供分隔符，直接返回包含原始字符串的数组
+        if (empty($separator)) {
+            return [$str];
         }
-        $result = explode((string)$separator[0], $str);
+
+        // 将所有分隔符替换为第一个分隔符
+        foreach ($separator as $sep) {
+            $str = str_replace($sep, $separator[0], $str);
+        }
+
+        // 分割字符串并排除空字符串
+        $result = explode($separator[0], $str);
         $result = array_filter($result, function ($item) {
-            return $item != '';
+            return $item !== '';
         });
+
         return $result;
     }
+
 
     /**是否为null或者空*/
     public function isEmpty(): bool
@@ -189,6 +205,22 @@ class Str
         return new Str(mb_strtolower($this->Source));
     }
 
+    /**向字符串左边追加*/
+    public function padLeft($total, $char = ' '): Str
+    {
+        return new Str(str_pad($this->Source, $total, $char, STR_PAD_LEFT));
+    }
+
+    /**向字符串右边追加*/
+    public function padRight($total, $char = ' '): Str
+    {
+        return new Str(str_pad($this->Source, $total, $char, STR_PAD_RIGHT));
+    }
+
+    public static function join(array $arr, string $separator): Str
+    {
+        return new Str(implode($separator, $arr));
+    }
 
     public function __toString()
     {
@@ -1170,7 +1202,7 @@ class FileCache
         }
         $content = file_get_contents($cacheFile);
         $cacheData = unserialize($content);
-        if (time() > $cacheData['expire']) {
+        if (time() >= $cacheData['expire']) {
             $this->delete($key);
             return $default;
         }
@@ -1244,12 +1276,13 @@ class FileCache
 /**单线程执行*/
 class Lock
 {
-    private $key;
     private $filename;
 
-    public function __construct($key)
+    public function __construct($key = null)
     {
-        $this->key = $key;
+        if (!$key) {
+            $key = Path::getServerRoot();
+        }
         $this->filename = sys_get_temp_dir() . '/' . md5($key) . '.lock';
     }
 
@@ -1328,7 +1361,7 @@ class Log
 
         $timestamp = date('Y-m-d H:i:s');
         $localFileName = Path::combineFromServerRoot('log', date('Y-m-d') . ' ' . $this->fileName . '.log');
-        $logMessage = "[$timestamp] [$level] ${message}\n";
+        $logMessage = "[$timestamp] [$level] $message\n";
 
         // 判断目录是否存在, 不存在则创建
         $dir = dirname($localFileName);
@@ -1371,6 +1404,131 @@ class Log
 
 }
 
+/**日期时间处理*/
+class Dt
+{
+    public $timestamp;
+
+    /**默认为当前时间*/
+    public function __construct($time = 0)
+    {
+        // 如果是整数就是时间戳
+        if (is_int($time)) {
+            // 如果是0就是当前时间
+            if ($time == 0) {
+                $this->timestamp = time();
+                return;
+            }
+
+            $this->timestamp = $time;
+            return;
+        }
+        // 如果是字符串就是日期时间, 转成时间戳
+        if (is_string($time)) {
+            $this->timestamp = strtotime($time);
+            return;
+        }
+
+        // 如果是Dt对象
+        if ($time instanceof Dt) {
+            $this->timestamp = $time->timestamp;
+            return;
+        }
+
+        // 如果是其他类型, 抛出异常
+        throw new Exception('invalid time type');
+
+    }
+
+
+    /**加秒*/
+    public function addSecond(int $second): Dt
+    {
+        return new Dt($this->timestamp + $second);
+    }
+
+    /**加分钟*/
+    public function addMinute(int $minute): Dt
+    {
+        return new Dt($this->timestamp + $minute * 60);
+    }
+
+    /**加小时*/
+    public function addHour(int $hour): Dt
+    {
+        return new Dt($this->timestamp + $hour * 3600);
+    }
+
+    /**加天*/
+    public function addDay(int $day): Dt
+    {
+        return new Dt($this->timestamp + $day * 24 * 3600);
+    }
+
+    /**加月*/
+    public function addMonth(int $month): Dt
+    {
+        $year = date('Y', $this->timestamp);
+        $month = date('m', $this->timestamp) + $month;
+        $day = date('d', $this->timestamp);
+        return new Dt(strtotime("$year-$month-$day"));
+    }
+
+    /**加年*/
+    public function addYear(int $year): Dt
+    {
+        $year = date('Y', $this->timestamp) + $year;
+        $month = date('m', $this->timestamp);
+        $day = date('d', $this->timestamp);
+        return new Dt(strtotime("$year-$month-$day"));
+    }
+
+    /**转成字符串*/
+    public function toDateTimeString(): string
+    {
+        // 格式为 Y/m/d H:i:s
+        return date('Y/m/d H:i:s', $this->timestamp);
+    }
+
+    /**转成字符串*/
+    public function toDateString(): string
+    {
+        // 格式为 Y/m/d
+        return date('Y/m/d', $this->timestamp);
+    }
+
+    /**转成字符串*/
+    public function toTimeString(): string
+    {
+        // 格式为 H:i:s
+        return date('H:i:s', $this->timestamp);
+    }
+
+    public function __toString(): string
+    {
+        return $this->toDateTimeString();
+    }
+
+    /**当前时间*/
+    public static function now(): Dt
+    {
+        return new Dt(time());
+    }
+
+    /**当前时间戳*/
+    public static function timeStamp(): int
+    {
+        return time();
+    }
+
+    /**当前世界时间戳*/
+    public static function nowUtc(): int
+    {
+        return strtotime(gmdate('Y-m-d H:i:s'));
+    }
+
+}
+
 /**不区分大写*/
 class DirFile
 {
@@ -1388,6 +1546,7 @@ class DirFile
 
     }
 
+    /**获取不区分大小写的文件名*/
     public function getFileName($fileName)
     {
         $fileName = strtolower($fileName);
@@ -1584,6 +1743,3 @@ class DirFile
 //        return 403;
 //    }
 
-$req = new Req();
-$res = new Res();
-$session = new Session();
