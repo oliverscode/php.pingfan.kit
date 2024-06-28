@@ -3,12 +3,11 @@
 error_reporting(E_ERROR);
 // 允许短标签
 ini_set('short_open_tag', 'On');
-
 $req = new Req();
 $res = new Res();
 $session = new Session();
 $cache = new FileCache();
-
+//$log = new Log();
 
 /**字符串扩展类*/
 class Str
@@ -38,13 +37,17 @@ class Str
     /**转成数字类型*/
     public function toFloat(): float
     {
-        return (float)$this->Source;
+        // 正则提取数字 [-+]?[0-9]+(\.[0-9]+)?
+        $num = $this->match('/[-+]?[0-9]+(\.[0-9]+)?/');
+        return (float)$num;
     }
 
     /**转成数字类型*/
     public function toInt(): int
     {
-        return (int)$this->Source;
+        // 正则提取数字 [-+]?[0-9]+
+        $num = $this->match('/[-+]?[0-9]+/');
+        return (int)$num;
     }
 
     /**隐藏中间几位*/
@@ -359,13 +362,13 @@ class Session
     }
 
     /**设置session*/
-    public function set(string $key, string $value)
+    public function set(string $key, $value)
     {
         $_SESSION[$key] = $value;
     }
 
     /**获取session*/
-    public function get(string $key, $default = '')
+    public function get(string $key, $default = null)
     {
         return $_SESSION[$key] ?? $default;
     }
@@ -386,6 +389,12 @@ class Session
     public function has(string $key): bool
     {
         return isset($_SESSION[$key]);
+    }
+
+    /**获取session id*/
+    public function getSessionId(): string
+    {
+        return session_id();
     }
 }
 
@@ -604,7 +613,6 @@ class Linq
         return $result;
     }
 
-
     /**去掉空元素*/
     public function whereNotNull(): Linq
     {
@@ -613,7 +621,27 @@ class Linq
         }));
     }
 
+    /**乱序*/
+    public function shuffle(): Linq
+    {
+        $result = $this->Source;
+        shuffle($result);
+        return new Linq($result);
+    }
 
+    /**克隆本数组*/
+    public function clone(): Linq
+    {
+        return new Linq($this->Source);
+    }
+
+    /**遍历*/
+    public function each(callable $func)
+    {
+        foreach ($this->Source as $item) {
+            $func($item);
+        }
+    }
 }
 
 /**
@@ -842,12 +870,123 @@ class Orm
 
 }
 
+/**openai 对接, 默认使用gpt-3.5-turbo模型, 还可以选择gpt-4-turbo*/
+class Ai
+{
+    public $model = '';
+    public $apiKey;
+    public $maxChatLength = 10;
+    public $systemMessage = '请用简单的语言回答,不要解释,更不要客套话,仅仅准确的回答问题';
+
+    public function __construct($key, $model = 'gpt-3.5-turbo')
+    {
+        $this->apiKey = $key;
+        $this->model = $model;
+    }
+
+
+    public function talk($message)
+    {
+        $sendMessage = ['role' => 'user', 'content' => $message];
+
+        // 构造发送的消息
+        $messages = [
+            ['role' => 'system', 'content' => $this->systemMessage]
+        ];
+
+        $history = [];
+        // 判断历史是否超过最大长度, 因为是我一条, 系统一条, 所以是2倍, 然后只取最后的部分
+        if (count($this->history) > $this->maxChatLength * 2) {
+            $history = array_slice($this->history, count($this->history) - $this->maxChatLength * 2);
+        } else {
+            $history = $this->history;
+        }
+
+        if (!empty($this->history)) {
+            $messages = array_merge($messages, $history);
+        }
+
+        $messages[] = $sendMessage;
+
+        $data = [
+            'model' => $this->model,
+            'messages' => $messages,
+        ];
+
+        // 发送请求
+        $http = new Http();
+        $response = $http->post($this->apiUrl, $data, true, ['Authorization' => 'Bearer ' . $this->apiKey]);
+        $result = json_decode($response['body'], true);
+
+        // 获取对话内容
+        $resMessage = $result['choices'][0]['message'];
+
+
+        // 添加到对话历史
+        $this->history[] = $sendMessage;
+        $this->history[] = $resMessage;
+
+        // 返回对话内容
+        return $resMessage['content'];
+
+
+    }
+
+    private $history = []; // 对话历史
+    private $apiUrl = 'https://api.openai.com/v1/chat/completions';
+
+
+}
+
+/**断点辅助, 每次调用都是会自增*/
+class Bp
+{
+    /**如果相等为true*/
+    public static function if($count): bool
+    {
+        self::$count++;
+        if ($count == self::$count) {
+            return true;
+        }
+        return false;
+    }
+
+    /**小于为true*/
+    public static function lt($count): bool
+    {
+        self::$count++;
+        if (self::$count < $count) {
+            return true;
+        }
+        return false;
+    }
+
+    /**大于为true*/
+    public static function gt($count): bool
+    {
+        self::$count++;
+        if (self::$count > $count) {
+            return true;
+        }
+        return false;
+    }
+
+
+    /**重置*/
+    public static function reset()
+    {
+        self::$count = 0;
+    }
+
+    private static $count = 0;
+
+}
 
 /**路径封装*/
 class Path
 {
     /**连接目录, 结尾不包含/*/
-    public static function combine(...$paths): string
+    public static function combine(string ...$paths): string
     {
         $dirs = [];
         foreach ($paths as $path) {
@@ -873,9 +1012,8 @@ class Path
         return $result;
     }
 
-
     /**从服务器根目录连接一系列目录, 结尾不包含/*/
-    public static function combineFromServerRoot(...$paths): string
+    public static function combineFromServerRoot(string ...$paths): string
     {
         $root = self::getServerRoot();
         return self::combine($root, ...$paths);
@@ -893,6 +1031,26 @@ class Path
     public static function getServerRoot(): string
     {
         return $_SERVER['DOCUMENT_ROOT'];
+    }
+
+    /**遍历这个目录下面的所有子目录和文件, 默认遍历当前目录*/
+    public static function getFiles(string $dir = null): array
+    {
+        if ($dir == null) {
+            $dir = self::getServerRoot();
+        }
+        return self::glob_recursive($dir . '/*');
+    }
+
+    private static function glob_recursive($pattern, $flags = 0)
+    {
+        // 搜索匹配当前模式的文件
+        $files = glob($pattern, $flags);
+        // 也搜索匹配当前模式的目录中的文件
+        foreach (glob(dirname($pattern) . '/*', GLOB_ONLYDIR | GLOB_NOSORT) as $dir) {
+            $files = array_merge($files, self::glob_recursive($dir . '/' . basename($pattern), $flags));
+        }
+        return $files;
     }
 }
 
@@ -938,7 +1096,7 @@ class Http
             CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_HEADER => true  // 添加这一行
         ];
-        $headers = $customHeaders;
+        $headers = [];
 
         $cookieString = http_build_query($this->cookieJar, '', '; ');
         if (!empty($cookieString)) {
@@ -948,8 +1106,8 @@ class Http
 
         if ($method === 'POST') {
             $options[CURLOPT_POST] = true;
-            $options[CURLOPT_POSTFIELDS] = $asJson ? json_encode($params) : http_build_query($params);
-            $headers[] = $asJson ? 'Content-Type: application/json' : 'application/x-www-form-urlencoded';
+            $options[CURLOPT_POSTFIELDS] = $asJson ? json_encode($params, JSON_UNESCAPED_UNICODE) : http_build_query($params);
+            $headers = $asJson ? ['Content-Type' => 'application/json'] : ['Content-Type' => 'application/x-www-form-urlencoded'];
             $headers = array_merge($headers, $customHeaders);
 
         }
@@ -1150,11 +1308,11 @@ class FileCache
 
     public function __construct()
     {
-        $this->cachePath = Path::combine(sys_get_temp_dir(), 'pingfan_kit_runtime_cache', md5(Path::getServerRoot()));
+        $path = sys_get_temp_dir() . '/pingfan_kit_runtime_cache/' . md5($_SERVER['DOCUMENT_ROOT']);
+        $this->cachePath = $path;
         if (!file_exists($this->cachePath)) {
             mkdir($this->cachePath, 0777, true);
         }
-
     }
 
     /**
@@ -1310,7 +1468,7 @@ class Lock
 
         // 执行回调函数
         try {
-            $result = call_user_func_array($callback, array_merge([$fileHandle], $params));
+            $result = call_user_func_array($callback, $params);
         } catch (Exception $e) {
             // 释放锁并关闭文件句柄
             flock($fileHandle, LOCK_UN);
@@ -1333,6 +1491,12 @@ class Json
     public static function encode($data)
     {
         return json_encode($data, JSON_UNESCAPED_UNICODE);
+    }
+
+    /** 将数据转成JSON字符串, 中文不进行转义, 同时带有缩进 */
+    public static function encodePretty($data)
+    {
+        return json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
 
     /** 将JSON字符串转成数组 */
@@ -1597,6 +1761,112 @@ class DirFile
     private $files;
     private $dir;
     private $cache;
+}
+
+/**Ini配置类*/
+class IniConfig
+{
+    private $config = [];
+    private $file = 'app.ini';
+
+    public function __construct()
+    {
+        $this->config = parse_ini_file($this->file, true);
+    }
+
+    // 析构时保存配置
+    public function __destruct()
+    {
+        $this->save();
+    }
+
+    public function get($key, $default = null)
+    {
+        $keys = explode('.', $key);
+        $value = $this->config;
+        foreach ($keys as $k) {
+            if (!isset($value[$k])) {
+                return $default;
+            }
+            $value = $value[$k];
+            // 如果是字符串且有换行符, 则转义
+            if (is_string($value) && strpos($value, "\\n") !== false) {
+                $value = str_replace("\\n", "\n", $value);
+            }
+        }
+        return $value;
+    }
+
+    public function set($key, $value)
+    {
+        // 如果有换行符, 则转义
+        if (is_string($value) && strpos($value, "\n") !== false) {
+            $value = str_replace("\n", "\\n", $value);
+        }
+
+        $keys = explode('.', $key);
+        $config = &$this->config;
+        foreach ($keys as $k) {
+            if (!isset($config[$k])) {
+                $config[$k] = [];
+            }
+            $config = &$config[$k];
+        }
+        $config = $value;
+    }
+
+    public function save()
+    {
+        $content = $this->arrayToIni($this->config);
+        file_put_contents($this->file, $content);
+    }
+
+    private function arrayToIni($array)
+    {
+        $content = '';
+        foreach ($array as $key => $value) {
+            if (is_array($value)) {
+                $content .= "[$key]\n";
+                $content .= $this->arrayToIni($value);
+            } else {
+                $content .= "$key = $value\n";
+            }
+        }
+        return $content;
+    }
+}
+
+
+/**一般用于限制访问次数*/
+class Limit
+{
+    /*判断在当前页面,一定时间内是否访问超过指定次数, 时间最大不能超过60秒*/
+    public static function On(int $count = 10, int $time = 3): bool
+    {
+        $key = 'limit_on';
+
+        // 添加进session
+        $_SESSION[$key][] = time();
+
+        // 遍历数组, 删除session超过60秒的值
+        foreach ($_SESSION[$key] as $index => $item) {
+            if (time() - $item > 60) {
+                unset($_SESSION[$key][$index]);
+            }
+        }
+
+        // 判断指定时间内是否超过限制
+        $visitCount = 0;
+        foreach ($_SESSION[$key] as $item) {
+            if (time() - $item < $time) {
+                $visitCount++;
+                if ($visitCount > $count) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }
 
 ///**入口类*/
