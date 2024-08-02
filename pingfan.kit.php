@@ -1,13 +1,25 @@
 <?php
-// 屏蔽警告
-error_reporting(E_ERROR);
 // 允许短标签
 ini_set('short_open_tag', 'On');
-$req = new Req();
-$res = new Res();
-$session = new Session();
-$cache = new FileCache();
-//$log = new Log();
+
+// 屏蔽警告
+// error_reporting(E_ERROR);
+
+
+// $req = new Req();
+// $res = new Res();
+// $session = new Session();
+// $auth = new Auth();
+// $cache = new FileCache();
+// $log = new Log();
+// $url = Path::getUrl();
+// $ip = $req->ip();
+// $log->debug("访问页面: $url, Ip: $ip");
+
+
+// $db = new Orm("sqlsrv:server=your_server_name;database=your_database_name;TrustServerCertificate=1", "your_username", "your_password");
+// $db = new Orm("mysql:host=your_server_name;dbname=your_database_name", "your_username", "your_password");
+// $db = new Orm("sqlite:your_database_name");
 
 /**字符串扩展类*/
 class Str
@@ -296,6 +308,18 @@ class Req
     {
         return file_get_contents('php://input');
     }
+
+    /**获取请求的Ip地址*/
+    public function ip(): string
+    {
+        $ip = $_SERVER['REMOTE_ADDR'];
+        if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+        } elseif (isset($_SERVER['HTTP_CLIENT_IP'])) {
+            $ip = $_SERVER['HTTP_CLIENT_IP'];
+        }
+        return $ip;
+    }
 }
 
 /**响应扩展*/
@@ -353,10 +377,13 @@ class Res
 /**session扩展*/
 class Session
 {
-    public function __construct()
+    /**设置session过期时间, 默认30分钟*/
+    public function __construct($expire = 1800)
     {
         // 判断是否开启session
         if (session_status() == PHP_SESSION_NONE) {
+            session_set_cookie_params($expire);
+            session_name('SESSION_ID');
             session_start();
         }
     }
@@ -399,7 +426,7 @@ class Session
 }
 
 /**模仿C#的Linq对数组扩展*/
-class Linq
+class Linq implements ArrayAccess
 {
     public $Source;
 
@@ -409,6 +436,12 @@ class Linq
         if (gettype($source) != 'array') {
             throw new Exception('source is not array');
         }
+        // 遍历数组
+//        foreach ($source as $item){
+//            // 添加到Source
+//            $this->Source[] = $item;
+//        }
+
         $this->Source = $source;
     }
 
@@ -420,6 +453,22 @@ class Linq
             if ($func($item)) {
                 $result[] = $item;
             }
+        }
+        return new Linq($result);
+    }
+
+    /**过滤数组*/
+    public function ifWhere(bool $if, callable $func): Linq
+    {
+        $result = [];
+        if ($if) {
+            foreach ($this->Source as $item) {
+                if ($func($item)) {
+                    $result[] = $item;
+                }
+            }
+        } else {
+            $result = $this->Source;
         }
         return new Linq($result);
     }
@@ -458,7 +507,19 @@ class Linq
         return new Linq(array_slice($this->Source, 0, $count));
     }
 
-    /**是否包含any*/
+    /**判断是否包含某个字符串, 同时忽略大小写*/
+    public function has($obj): bool
+    {
+        foreach ($this->Source as $item) {
+            if (($item) == ($obj)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    /**是否包含*/
     public function any(callable $func): bool
     {
         foreach ($this->Source as $item) {
@@ -493,51 +554,75 @@ class Linq
         return $this->Source;
     }
 
+    /**重新整理数组索引*/
+    public function format(): Linq
+    {
+        $this->Source = array_values($this->Source);
+        return $this;
+    }
 
     /**求和*/
-    public function sum(callable $func): float
+    public function sum(callable $func = null): float
     {
         $result = 0.0;
         foreach ($this->Source as $item) {
-            $result += $func($item);
+            if ($func == null)
+                $result += floatval($item);
+            else
+                $result += $func($item);
         }
+
         return $result;
     }
 
     /**求平均值*/
-    public function avg(callable $func): float
+    public
+    function avg(callable $func = null): float
     {
         $result = 0.0;
         $count = 0;
         foreach ($this->Source as $item) {
-            $result += $func($item);
+            if ($func == null)
+                $result += floatval($item);
+            else
+                $result += $func($item);
+
             $count++;
         }
         return $result / $count;
     }
 
     /**求最大值*/
-    public function max(callable $func): float
+    public
+    function max(callable $func = null): float
     {
         $result = PHP_INT_MIN;
         foreach ($this->Source as $item) {
-            $result = max($result, $func($item));
+            if ($func == null)
+                $result = max($result, floatval($item));
+            else
+                $result = max($result, $func($item));
         }
         return $result;
     }
 
     /**求最小值*/
-    public function min(callable $func): float
+    public
+    function min(callable $func = null): float
     {
         $result = PHP_INT_MAX;
         foreach ($this->Source as $item) {
-            $result = min($result, $func($item));
+            if ($func == null)
+                $result = min($result, floatval($item));
+            else
+                $result = min($result, $func($item));
         }
         return $result;
     }
 
     /**从小到大排序*/
-    public function orderByAes(callable $func): Linq
+    public
+    function orderByAes(callable $func): Linq
     {
         $result = $this->Source;
         usort($result, function ($a, $b) use ($func) {
@@ -548,7 +633,8 @@ class Linq
     }
 
     /**从大到小排序*/
-    public function orderByDesc(callable $func): Linq
+    public
+    function orderByDesc(callable $func): Linq
     {
         $result = $this->Source;
         usort($result, function ($a, $b) use ($func) {
@@ -558,7 +644,8 @@ class Linq
     }
 
     /**分组*/
-    public function groupBy(callable $func): array
+    public
+    function groupBy(callable $func): array
     {
         $result = [];
         foreach ($this->Source as $item) {
@@ -572,7 +659,8 @@ class Linq
     }
 
     /**连接*/
-    public function join(Linq $inner, callable $outerKeySelector, callable $innerKeySelector, callable $resultSelector): Linq
+    public
+    function join(Linq $inner, callable $outerKeySelector, callable $innerKeySelector, callable $resultSelector): Linq
     {
         $result = [];
         foreach ($this->Source as $outer) {
@@ -586,25 +674,36 @@ class Linq
     }
 
     /**去重*/
-    public function distinct(): Linq
+    public
+    function distinct(): Linq
     {
         return new Linq(array_unique($this->Source));
     }
 
-    /**合并*/
-    public function concat(Linq $linq): Linq
+    /**合并
+     * @throws Exception 参数必须是数组或者是Linq类型
+     */
+    public
+    function concat($list): Linq
     {
-        return new Linq(array_merge($this->Source, $linq->Source));
+        if ($list instanceof Linq)
+            return new Linq(array_merge($this->Source, $list->Source));
+        // 如果是数组
+        else if (is_array($list))
+            return new Linq(array_merge($this->Source, $list));
+        throw new Exception("参数必须是Linq或者数组");
     }
 
     /**分页*/
-    public function page(int $pageIndex, int $pageSize): Linq
+    public
+    function page(int $pageIndex, int $pageSize): Linq
     {
         return new Linq(array_slice($this->Source, ($pageIndex - 1) * $pageSize, $pageSize));
     }
 
     /**聚合*/
-    public function aggregate(callable $func)
+    public
+    function aggregate(callable $func)
     {
         $result = $this->Source[0];
         for ($i = 1; $i < count($this->Source); $i++) {
@@ -614,7 +713,8 @@ class Linq
     }
 
     /**去掉空元素*/
-    public function whereNotNull(): Linq
+    public
+    function whereNotNull(): Linq
     {
         return new Linq(array_filter($this->Source, function ($item) {
             return $item != null;
@@ -622,7 +722,8 @@ class Linq
     }
 
     /**乱序*/
-    public function shuffle(): Linq
+    public
+    function shuffle(): Linq
     {
         $result = $this->Source;
         shuffle($result);
@@ -630,7 +731,8 @@ class Linq
     }
 
     /**克隆本数组*/
-    public function clone(): Linq
+    public
+    function clone(): Linq
     {
         return new Linq($this->Source);
     }
@@ -641,6 +743,62 @@ class Linq
         foreach ($this->Source as $item) {
             $func($item);
         }
+    }
+
+    /**遍历, 第二个参数为下标*/
+    public function eachWithIndex(callable $func)
+    {
+        foreach ($this->Source as $index => $item) {
+            $func($item, $index);
+        }
+    }
+
+    public function push($item): Linq
+    {
+        $this->Source[] = $item;
+        return $this;
+    }
+
+    /**支持魔术方法*/
+    public function __get($name)
+    {
+        if (isset($this->Source[$name])) {
+            return $this->Source[$name];
+        } else {
+            return null;
+        }
+    }
+
+    /**支持魔术方法*/
+    public function __set($name, $value)
+    {
+        $this->Source[$name] = $value;
+    }
+
+    public function __toString(): string
+    {
+        // 模拟数组返回
+        return json_encode($this->Source, JSON_UNESCAPED_UNICODE);
+    }
+
+    public function offsetExists($offset): bool
+    {
+        return isset($this->Source[$offset]);
+    }
+
+    public function offsetGet($offset): mixed
+    {
+        return $this->Source[$offset];
+    }
+
+    public function offsetSet($offset, $value): void
+    {
+        $this->Source[$offset] = $value;
+    }
+
+    public function offsetUnset($offset): void
+    {
+        unset($this->Source[$offset]);
     }
 }
 
@@ -657,33 +815,36 @@ class Orm
     public $pdo;
     protected $dbType;
 
-    public function __construct($dbString, $user = '', $pwd = '', $options = array())
+    public function __construct(string $dbString, $user = '', $pwd = '', $options = array())
     {
-        // 如果是字符串就是连接字符串
-        if (gettype($dbString) == 'string') {
+
+        // 通过连接字符串判断数据库类型
+        $this->dbType = explode(':', $dbString)[0];
+
+
+        if ($this->dbType == 'sqlite') {
+            if (!extension_loaded('pdo_sqlite'))
+                throw new Exception('pdo_sqlite extension is not loaded');
             $this->pdo = new PDO($dbString, $user, $pwd, $options);
-            // 设置错误处理方式为异常
-            $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $this->pdo->exec('PRAGMA journal_mode = WAL');
+            $this->pdo->exec('PRAGMA cache_size = 20000');
 
-            // 通过连接字符串判断数据库类型
-            $this->dbType = explode(':', $dbString)[0];
+        } else if ($this->dbType == 'sqlsrv') {
+            if (!extension_loaded('pdo_sqlsrv'))
+                throw new Exception('pdo_sqlsrv extension is not loaded');
+            $this->pdo = new PDO($dbString, $user, $pwd, $options);
+            $this->pdo->setAttribute(PDO::SQLSRV_ATTR_FETCHES_NUMERIC_TYPE, true);
 
-            // 如果是sqlite就单独做一些设置
-            if ($this->dbType == 'sqlite') {
-                $this->pdo->exec('PRAGMA journal_mode = WAL');
-                $this->pdo->exec('PRAGMA cache_size = 20000');
-            } // 如果是sqlserver就单独做一些设置
-            else if ($this->dbType == 'sqlsrv') {
-                $this->pdo->setAttribute(PDO::SQLSRV_ATTR_FETCHES_NUMERIC_TYPE, true);
-            } // 如果是mysql就单独做一些设置
-            else if ($this->dbType == 'mysql') {
-                $this->pdo->exec('SET NAMES utf8');
-            }
-
-
-        } else {
-            throw new Exception('dbString is not string');
+        } else if ($this->dbType == 'mysql') {
+            if (!extension_loaded('pdo_mysql'))
+                throw new Exception('pdo_mysql extension is not loaded');
+            $this->pdo = new PDO($dbString, $user, $pwd, $options);
+            $this->pdo->exec('SET NAMES utf8');
         }
+
+        // 设置错误处理方式为异常
+        $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
     }
 
 
@@ -694,12 +855,12 @@ class Orm
         return $stmt->fetchAll();
     }
 
-    public function execute($sql, $params = array(), $correctRow = 1): int
+    public function execute($sql, $params = array(), $correctRow = -1): int
     {
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         $row = $stmt->rowCount();
-        if (isset($correctRow) && $row != $correctRow) {
+        if ($correctRow != -1 && $row != $correctRow) {
             throw new Exception("execute error, affected rows: $row, correct rows: $correctRow");
         }
         return $row;
@@ -1031,6 +1192,18 @@ class Path
     public static function getServerRoot(): string
     {
         return $_SERVER['DOCUMENT_ROOT'];
+    }
+
+    /**获取除了根域名后面的路径, 以/开头*/
+    public static function getUrl(): string
+    {
+        return $_SERVER['SCRIPT_NAME'];
+    }
+
+    /**获取当前执行的脚本名, 仅仅是脚本名*/
+    public static function getScript(): string
+    {
+        return basename($_SERVER['SCRIPT_NAME']);
     }
 
     /**遍历这个目录下面的所有子目录和文件, 默认遍历当前目录*/
@@ -1488,13 +1661,13 @@ class Lock
 class Json
 {
     /** 将数据转成JSON字符串, 中文不进行转义 */
-    public static function encode($data)
+    public static function encode($data): string
     {
         return json_encode($data, JSON_UNESCAPED_UNICODE);
     }
 
     /** 将数据转成JSON字符串, 中文不进行转义, 同时带有缩进 */
-    public static function encodePretty($data)
+    public static function encodePretty($data): string
     {
         return json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
@@ -1869,6 +2042,62 @@ class Limit
     }
 }
 
+/**一般用于登录权限验证*/
+class Auth
+{
+
+
+    public function __construct($authPage = "/auth.php")
+    {
+        // 判断全局是否有$session变量
+        global $session;
+        if (!isset($session)) {
+            throw new Exception("全局变量session未定义");
+        }
+        $this->isLogin($authPage);
+    }
+
+    /**登录成功调用*/
+    public function login($auth)
+    {
+        global $session;
+        $session->set('auth', $auth);
+    }
+
+    /**获取登录验证的信息*/
+    public function auth()
+    {
+        global $session;
+        return $session->get('auth');
+    }
+
+    /**清空登录信息*/
+    public function clear()
+    {
+        global $session;
+        $session->delete('auth');
+    }
+
+    private function isLogin($authPage = '/auth.php')
+    {
+        // 获取当前脚本名称
+        $currentPage = Path::getUrl();
+        // 如果是登录页面就不做处理
+        if ($currentPage == $authPage) {
+            return;
+        }
+
+        global $session;
+        $auth = $session->get('auth');
+        if ($auth == null) {
+            header("Location: $authPage?b=$currentPage");
+            die;
+        }
+    }
+
+
+}
+
 ///**入口类*/
 //class App
 //{
@@ -1922,94 +2151,4 @@ class Limit
 //
 //
 //        // 判断是否是禁止访问的文件
-//        foreach ($this->option['deny'] as $deny) {
-//            if (stripos($request_url, $deny) !== false) {
-//                header('HTTP/1.1 403 Forbidden');
-//                return;
-//            }
-//        }
-//
-//
-//        // 取扩展名
-//        $ext = pathinfo($request_url, PATHINFO_EXTENSION);
-//        if ($ext == '') {
-//            $ext = 'php';
-//            $request_url .= '.php';
-//        }
-//
-//        $filePath = Path::combineFromServerRoot($request_url);
-//
-//
-//        // 如果是php文件
-//        if ($ext == 'php') {
-//
-//            if (file_exists($filePath)) {
-//                $this->runFile($filePath);
-//                return;
-//            }
-//
-//
-//            $dirFile = new DirFile();
-//            $filePath = $dirFile->getFileName($filePath);
-//
-//
-//            if (file_exists($filePath)) {
-//                $this->runFile($filePath);
-//                return;
-//            }
-//
-//            header('HTTP/1.1 404 Not Found');
-//            return;
-//
-//        }
-//
-//        // 静态文件
-//        if (file_exists($filePath)) {
-//            $mime = Mime::get($ext);
-//            header('Content-Type: ' . $mime);
-//            readfile($filePath);
-//            return;
-//        }
-//
-//
-//        // 如果文件不存在, 则尝试在文件夹中查找
-//        $dirFile = new DirFile();
-//        $fileName = $dirFile->getFileName($filePath);
-//        if (file_exists($fileName)) {
-//            $mime = Mime::get($ext);
-//            header('Content-Type: ' . $mime);
-//            readfile($fileName);
-//            return;
-//        }
-//
-//        header('HTTP/1.1 404 Not Found');
-//        return;
-//
-//    }
-//
-//    private function runFile(string $file)
-//    {
-//
-//        header('Content-Type: text/html; charset=utf-8'); // 设置编码
-//        try {
-//            include $file;
-//        } catch (Exception $exception) {
-//            if ($this->option['debug'] === true) {
-//                throw $exception;
-//            } else {
-//                $log = new Log("app");
-//                $logMessage = '异常消息: ' . $exception->getMessage() . ' 在文件 ' . $exception->getFile() . ' 第 ' . $exception->getLine() . ' 行';
-//                $log->error($logMessage);
-//            }
-//            header('HTTP/1.1 500 Internal Server Error');
-//            die;
-//        }
-//    }
-//}
-
-//# 禁止访问
-//location ~* (app\.php|pingfan\.kit\.php|\.ini$|\.db$|\.log$|\.sql$|\.bak$|/inc/|/config/|/runtime/|/vendor/|\.htaccess$|/\.git/|/\.svn/|\.env$|/composer/|\.project$|LICENSE$|README$|/\.hg/$) {
-//    deny all;
-//        return 403;
-//    }
-
+//        foreach (
